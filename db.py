@@ -30,6 +30,47 @@ def get_user_logined(username, password):
     except pymysql.MySQLError as e:
         print(f"Error executing query: {e}")
         return None
-    finally:
-        connection.close()
 
+def get_username(username):
+    try:
+        with connection.cursor() as cursor:
+            # نوشتن کوئری برای جستجو یوزر و پسورد
+            sql = "SELECT * FROM users WHERE username = %s"
+            
+            # اجرای کوئری
+            cursor.execute(sql, (username))
+            
+            # گرفتن نتایج
+            result = cursor.fetchone()
+            
+            # اگر یوزر پیدا شود، آن را برمی‌گرداند
+            if result:
+                return result
+            else:
+                return None
+    except pymysql.MySQLError as e:
+        print(f"Error executing query: {e}")
+        return None
+
+
+def register_user_in_db(username , password):
+    try:
+        with connection.cursor() as cursor:
+            if get_username(username):
+                return None
+            # نوشتن کوئری برای جستجو یوزر و پسورد
+            sql = "INSERT INTO `users`(`id`, `username`, `password`) VALUES (%s,%s,%s)"
+            # اجرای کوئری
+            cursor.execute(sql, (None , username, password))
+            last_id = cursor.lastrowid
+            # بازیابی کل اطلاعات ردیف ثبت‌شده
+            sql_select = "SELECT * FROM users WHERE id = %s"
+            cursor.execute(sql_select, (last_id,))
+            row = cursor.fetchone()
+    
+            print("Inserted row:", row)
+    
+            connection.commit()
+    except pymysql.MySQLError as e:
+        print(f"Error executing query: {e}")
+        return None

@@ -21,7 +21,7 @@ def authenticate_user(username, password):
 class Server():
     def __init__(self):
         self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        server_ip = "127.0.0.0"
+        server_ip = "0.0.0.0"
         self.client_socket.connect((server_ip, 1234))  # آدرس و پورت سرور
 
     def login_user(self, username, password):
@@ -38,11 +38,9 @@ class Server():
     def register_user(self, username, password , email):
         self.username = username
         self.password = password
-        self.email = email
         user_data = {
             "username": username,
-            'password': password,
-            'email' : email
+            'password': password
         }
         data = json.dumps(user_data).encode('utf-8')
         self.client_socket.send(data)

@@ -7,6 +7,9 @@ import wave
 import socket
 import threading
 import json
+from PIL import Image, ImageTk
+import os
+
 
 client_socket = None
 
@@ -14,9 +17,7 @@ client_socket = None
 users_online = []
 active_chat = 'everybody'
 
-# تابع تایید ورود
-def authenticate_user(username, password):
-    return users.get(username) == password
+
 
 
 class Server:
@@ -78,6 +79,57 @@ class Server:
 server = Server()
 
 
+
+
+def display_file_in_chatbox(chatbox, file_path):
+    """Displays a file in the chatbox based on its type."""
+    if file_path.lower().endswith((".png", ".jpg", ".jpeg", ".gif")):
+        display_image_in_chatbox(chatbox, file_path)
+    elif file_path.lower().endswith(".txt"):
+        display_text_file_in_chatbox(chatbox, file_path)
+    else:
+        display_file_link_in_chatbox(chatbox, file_path)
+
+def display_image_in_chatbox(chatbox, image_path):
+    """Displays an image file in the chatbox."""
+    try:
+        img = Image.open(image_path)
+        img.thumbnail((100, 100))  # Resize image for thumbnail
+        img_tk = ImageTk.PhotoImage(img)
+
+        chatbox.image_create(END, image=img_tk)  # Add image to chatbox
+        chatbox.insert(END, "\n")  # Add a new line
+        chatbox.image = img_tk  # Keep reference to avoid garbage collection
+    except Exception as e:
+        chatbox.insert(END, f"Error displaying image: {e}\n")
+
+def display_text_file_in_chatbox(chatbox, file_path):
+    """Displays the content of a text file in the chatbox."""
+    try:
+        with open(file_path, "r") as file:
+            content = file.read(500)  # Display only the first 500 characters
+        chatbox.config(state=NORMAL)
+        chatbox.insert(END, f"You sent a text file: {os.path.basename(file_path)}\n")
+        chatbox.insert(END, f"{content}...\n", "file_preview")
+        chatbox.config(state=DISABLED)
+    except Exception as e:
+        chatbox.insert(END, f"Error displaying text file: {e}\n")
+
+def display_file_link_in_chatbox(chatbox, file_path):
+    """Displays a clickable link for unsupported file types."""
+    def open_file():
+        try:
+            os.startfile(file_path)  # Open file in default application
+        except Exception as e:
+            chatbox.insert(END, f"Error opening file: {e}\n")
+
+    chatbox.config(state=NORMAL)
+    file_name = os.path.basename(file_path)
+    chatbox.insert(END, f"You sent a file: {file_name}\n")
+    chatbox.window_create(END, window=Button(chatbox, text="Open File", command=open_file))
+    chatbox.insert(END, "\n")
+    chatbox.config(state=DISABLED)
+
 def receive_messages(chatbox, online_listbox):
     """دریافت پیام‌ها از سرور"""
     while True:
@@ -99,6 +151,7 @@ def receive_messages(chatbox, online_listbox):
                             "received_message",
                         )
                         chatbox.config(state=DISABLED)
+                        display_file_in_chatbox(chatbox , filename)
                     chatbox.config(state=NORMAL)
                     chatbox.insert(END, f"{message['username']} : {message['message']} \n")
                     chatbox.config(state=DISABLED)
@@ -116,6 +169,7 @@ def receive_messages(chatbox, online_listbox):
                             "received_message",
                         )
                         chatbox.config(state=DISABLED)
+                        display_file_in_chatbox(chatbox , filename)
                     chatbox.config(state=NORMAL)
                     chatbox.insert(
                         END, f"{message['sender']} : {message['message']} \n"
@@ -380,26 +434,29 @@ def ChatroomPage(root, username):
                 # خواندن محتوای فایل
                 with open(file_path, "rb") as file:
                     file_data = file.read()
-                
+
+                # ساختار پیام برای ارسال فایل
+                message_data = {
+                    "filename": file_path.split("/")[-1],  # نام فایل
+                    "filedata": file_data.decode("latin1"),  # ارسال فایل به صورت رشته
+                    "type": "file",  # نوع پیام
+                    "receiver": active_chat  # دریافت‌کننده پیام
+                }
+
                 # ارسال فایل به سرور
                 threading.Thread(
-                    target=lambda: server.new_message(
-                        json.dumps({
-                            "filename": file_path.split("/")[-1],  # نام فایل
-                            "filedata": file_data.decode("latin1"),  # ارسال فایل به صورت رشته
-                        }),
-                        active_chat
-                    ),
+                    target=lambda: server.new_message(json.dumps(message_data), active_chat),
                     daemon=True
                 ).start()
-    
+
                 # نمایش در چت‌باکس
-                chatbox.config(state=NORMAL)
-                chatbox.insert(END, f"You sent a file: {file_path.split('/')[-1]}\n", "self_message")
-                chatbox.config(state=DISABLED)
-    
+                display_file_in_chatbox(chatbox , file_path)
+
+
             except Exception as e:
                 print(f"Error sending file: {e}")
+                messagebox.showerror("Error", "An error occurred while sending the file.")
+
     
     
     def open_menu():

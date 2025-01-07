@@ -114,11 +114,20 @@ def handle_client(client_socket):
                 elif message_data['type'] == 'message':
                     if message_data.get('receiver') == 'everybody':
                         print('hame')
+                        if message_data['message']['type'] == 'file':
+                            file_data = message_data['message']["filedata"].encode("latin1")
+                            with open(message_data['message']["filename"], "wb") as file:
+                                file.write(file_data)
                         broadcast(json.dumps(message_data).encode('utf-8'), client_socket)
+
                     else:
                         
-                        sender = message_data['username']  # فرض بر این است که فرستنده در داده پیام موجود است
+                        sender = message_data['username']  
                         receiver = message_data['receiver']
+                        if message_data['message']['type'] == 'file':
+                            file_data = message_data['message']["filedata"].encode("latin1")
+                            with open(message_data['message']["filename"], "wb") as file:
+                                file.write(file_data)
                         send_to_user(sender, receiver, message_data)
                         
 
